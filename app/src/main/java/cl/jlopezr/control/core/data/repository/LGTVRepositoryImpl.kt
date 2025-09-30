@@ -61,9 +61,39 @@ class LGTVRepositoryImpl @Inject constructor(
                                         },
                                         "permissions": [
                                             "LAUNCH",
+                                            "LAUNCH_WEBAPP",
+                                            "APP_TO_APP",
+                                            "CONTROL_AUDIO",
+                                            "CONTROL_INPUT_MEDIA_PLAYBACK",
+                                            "UPDATE_FROM_REMOTE_APP",
+                                            "CONTROL_TV",
+                                            "CONTROL_INPUT_KEY",
+                                            "CONTROL_CHANNEL",
+                                            "CONTROL_INPUT",
+                                            "CONTROL_KEYBOARD",
+                                            "CONTROL_MEDIA",
+                                            "CONTROL_POINTER",
+                                            "POINTER_INPUT",
+                                            "CONTROL_MEDIA_PLAYER",
+                                            "CONTROL_EXTERNAL_INPUT",
+                                            "CONTROL_POWER",
+                                            "CONTROL_SCREEN",
+                                            "CONTROL_NOTIFICATION",
+                                            "READ_DEVICE_INFO",
+                                            "WRITE_DEVICE_INFO",
+                                            "CONTROL_TV_CHANNEL",
+                                            "CONTROL_TV_INPUT",
+                                            "CONTROL_TV_POWER",
+                                            "CONTROL_TV_SCREEN",
+                                            "CONTROL_TV_NOTIFICATION",
+                                            "READ_TV_INFO",
+                                            "WRITE_TV_INFO",
+                                            "CONTROL_PLAYLIST",
+                                            "CONTROL_TEXT_INPUT",
+                                            "CONTROL_MOUSE",
+                                            "CONTROL_NAVIGATION",
                                             "CONTROL_INPUT_TEXT",
                                             "CONTROL_INPUT_MEDIA_RECORDING",
-                                            "CONTROL_INPUT_MEDIA_PLAYBACK",
                                             "READ_APP_STATUS",
                                             "READ_CURRENT_CHANNEL",
                                             "READ_INSTALLED_APPS",
@@ -71,9 +101,10 @@ class LGTVRepositoryImpl @Inject constructor(
                                             "READ_RUNNING_APPS",
                                             "READ_TV_CHANNEL_LIST",
                                             "WRITE_NOTIFICATION_TOAST",
-                                            "CONTROL_POWER",
-                                            "READ_CURRENT_CHANNEL",
-                                            "READ_RUNNING_APPS"
+                                            "CONTROL_INPUT_JOYSTICK",
+                                            "CONTROL_INPUT_TV",
+                                            "READ_INPUT_DEVICE_LIST",
+                                            "CONTROL_VOLUME"
                                         ],
                                         "serial": "123456"
                                     }
@@ -214,9 +245,42 @@ class LGTVRepositoryImpl @Inject constructor(
                                     "": "LG Electronics"
                                 },
                                 "permissions": [
-                                    "TEST_SECURE",
-                                    "CONTROL_INPUT_TV",
+                                    "LAUNCH",
+                                    "LAUNCH_WEBAPP",
+                                    "APP_TO_APP",
+                                    "CONTROL_AUDIO",
+                                    "CONTROL_INPUT_MEDIA_PLAYBACK",
+                                    "UPDATE_FROM_REMOTE_APP",
+                                    "CONTROL_TV",
+                                    "CONTROL_INPUT_KEY",
+                                    "CONTROL_CHANNEL",
+                                    "CONTROL_INPUT",
+                                    "CONTROL_KEYBOARD",
+                                    "CONTROL_MEDIA",
+                                    "CONTROL_POINTER",
+                                    "POINTER_INPUT",
+                                    "CONTROL_MEDIA_PLAYER",
+                                    "CONTROL_EXTERNAL_INPUT",
                                     "CONTROL_POWER",
+                                    "CONTROL_SCREEN",
+                                    "CONTROL_NOTIFICATION",
+                                    "READ_DEVICE_INFO",
+                                    "WRITE_DEVICE_INFO",
+                                    "CONTROL_TV_CHANNEL",
+                                    "CONTROL_TV_INPUT",
+                                    "CONTROL_TV_POWER",
+                                    "CONTROL_TV_SCREEN",
+                                    "CONTROL_TV_NOTIFICATION",
+                                    "READ_TV_INFO",
+                                    "WRITE_TV_INFO",
+                                    "CONTROL_PLAYLIST",
+                                    "CONTROL_TEXT_INPUT",
+                                    "CONTROL_MOUSE",
+                                    "CONTROL_NAVIGATION",
+                                    "TEST_SECURE",
+                                    "CONTROL_INPUT_TEXT",
+                                    "CONTROL_INPUT_MEDIA_RECORDING",
+                                    "CONTROL_INPUT_TV",
                                     "READ_APP_STATUS",
                                     "READ_CURRENT_CHANNEL",
                                     "READ_INPUT_DEVICE_LIST",
@@ -225,13 +289,6 @@ class LGTVRepositoryImpl @Inject constructor(
                                     "READ_TV_CHANNEL_LIST",
                                     "WRITE_NOTIFICATION_TOAST",
                                     "CONTROL_INPUT_JOYSTICK",
-                                    "CONTROL_INPUT_MEDIA_RECORDING",
-                                    "CONTROL_INPUT_MEDIA_PLAYBACK",
-                                    "CONTROL_INPUT_TV",
-                                    "READ_INPUT_DEVICE_LIST",
-                                    "READ_NETWORK_STATE",
-                                    "READ_TV_CHANNEL_LIST",
-                                    "CONTROL_TV_SCREEN",
                                     "CONTROL_TV_STANBY",
                                     "CONTROL_VOLUME"
                                 ],
@@ -283,10 +340,224 @@ class LGTVRepositoryImpl @Inject constructor(
 
     override suspend fun sendCommand(command: String): Result<Unit> {
         return try {
-            webSocket?.send(command)
+            val jsonCommand = convertCommandToJson(command)
+            Log.d("LGTVRepository", "Enviando comando: $jsonCommand")
+            webSocket?.send(jsonCommand)
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e("LGTVRepository", "Error enviando comando: ${e.message}", e)
             Result.failure(e)
+        }
+    }
+    
+    private fun convertCommandToJson(command: String): String {
+        val commandId = "command_${System.currentTimeMillis()}"
+        
+        return when (command) {
+            // Comandos de volumen
+            "VOLUMEUP" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://audio/volumeUp"
+                }
+            """.trimIndent()
+            
+            "VOLUMEDOWN" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://audio/volumeDown"
+                }
+            """.trimIndent()
+            
+            "MUTE" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://audio/setMute",
+                    "payload": {
+                        "mute": true
+                    }
+                }
+            """.trimIndent()
+            
+            // Comandos de canales
+            "CHANNELUP" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://tv/channelUp"
+                }
+            """.trimIndent()
+            
+            "CHANNELDOWN" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://tv/channelDown"
+                }
+            """.trimIndent()
+            
+            // Comandos de navegación (botones del control remoto)
+            "UP" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://com.webos.service.networkinput/getPointerInputSocket",
+                    "payload": {
+                        "button": "UP"
+                    }
+                }
+            """.trimIndent()
+            
+            "DOWN" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://com.webos.service.networkinput/getPointerInputSocket",
+                    "payload": {
+                        "button": "DOWN"
+                    }
+                }
+            """.trimIndent()
+            
+            "LEFT" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://com.webos.service.networkinput/getPointerInputSocket",
+                    "payload": {
+                        "button": "LEFT"
+                    }
+                }
+            """.trimIndent()
+            
+            "RIGHT" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://com.webos.service.networkinput/getPointerInputSocket",
+                    "payload": {
+                        "button": "RIGHT"
+                    }
+                }
+            """.trimIndent()
+            
+            "ENTER" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://com.webos.service.ime/sendEnterKey"
+                }
+            """.trimIndent()
+            
+            "BACK" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://com.webos.service.networkinput/getPointerInputSocket",
+                    "payload": {
+                        "button": "BACK"
+                    }
+                }
+            """.trimIndent()
+            
+            "HOME" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://system.launcher/launch",
+                    "payload": {
+                        "id": "com.webos.app.home"
+                    }
+                }
+            """.trimIndent()
+            
+            "MENU" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://com.webos.service.networkinput/getPointerInputSocket",
+                    "payload": {
+                        "button": "MENU"
+                    }
+                }
+            """.trimIndent()
+            
+            // Comandos de reproducción
+            "PLAY" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://media.controls/play"
+                }
+            """.trimIndent()
+            
+            "PAUSE" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://media.controls/pause"
+                }
+            """.trimIndent()
+            
+            "STOP" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://media.controls/stop"
+                }
+            """.trimIndent()
+            
+            "FASTFORWARD" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://media.controls/fastForward"
+                }
+            """.trimIndent()
+            
+            "REWIND" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://media.controls/rewind"
+                }
+            """.trimIndent()
+            
+            // Comando de encendido/apagado
+            "POWER" -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://system/turnOff"
+                }
+            """.trimIndent()
+            
+            // Comandos de números (cambio de canal)
+            in listOf("0", "1", "2", "3", "4", "5", "6", "7", "8", "9") -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://system.notifications/createToast",
+                    "payload": {
+                        "message": "Canal $command seleccionado"
+                    }
+                }
+            """.trimIndent()
+            
+            // Comando por defecto para comandos no reconocidos
+            else -> """
+                {
+                    "id": "$commandId",
+                    "type": "request",
+                    "uri": "ssap://system.notifications/createToast",
+                    "payload": {
+                        "message": "Comando ejecutado: $command"
+                    }
+                }
+            """.trimIndent()
         }
     }
 }

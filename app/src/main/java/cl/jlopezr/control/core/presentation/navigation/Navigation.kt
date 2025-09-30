@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import cl.jlopezr.control.home.presentation.HomeScreen
 import cl.jlopezr.control.splash.presentation.SplashScreen
+import cl.jlopezr.control.voice.presentation.VoiceControlScreen
 
 @Composable
 fun Navigation(navController: NavHostController) {
@@ -26,7 +27,19 @@ fun Navigation(navController: NavHostController) {
         }
         
         composable(Screen.Home.route) {
-            HomeScreen()
+            HomeScreen(
+                onNavigateToVoiceControl = {
+                    navController.navigate(Screen.VoiceControl.route)
+                }
+            )
+        }
+        
+        composable(Screen.VoiceControl.route) {
+            VoiceControlScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
         }
     }
 }
@@ -34,4 +47,5 @@ fun Navigation(navController: NavHostController) {
 sealed class Screen(val route: String) {
     object Splash : Screen("splash")
     object Home : Screen("home")
+    object VoiceControl : Screen("voice_control")
 }

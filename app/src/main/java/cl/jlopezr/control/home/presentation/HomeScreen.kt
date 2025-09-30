@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
@@ -41,6 +42,7 @@ import cl.jlopezr.control.core.domain.model.DiscoveredTV
 
 @Composable
 fun HomeScreen(
+    onNavigateToVoiceControl: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -173,7 +175,7 @@ fun HomeScreen(
         // Área de controles (solo visible cuando está conectado)
         if (uiState.connectionState == ConnectionState.CONNECTED) {
             Spacer(modifier = Modifier.height(16.dp))
-            RemoteControlsSection()
+            RemoteControlsSection(onNavigateToVoiceControl = onNavigateToVoiceControl)
         }
     }
 
@@ -376,7 +378,9 @@ private fun TVItem(
 }
 
 @Composable
-private fun RemoteControlsSection() {
+private fun RemoteControlsSection(
+    onNavigateToVoiceControl: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -390,11 +394,26 @@ private fun RemoteControlsSection() {
             )
             Spacer(modifier = Modifier.height(16.dp))
             
-            // Aquí se pueden agregar los botones de control remoto
+            // Botón de control por voz
+            Button(
+                onClick = onNavigateToVoiceControl,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Control por voz",
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Text("Control por Voz")
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
             Text(
-                text = "Controles del TV aparecerán aquí",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "Usa tu voz para controlar la TV",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
         }
     }
