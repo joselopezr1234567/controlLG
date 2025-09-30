@@ -36,7 +36,7 @@ class LGTVRepositoryImpl @Inject constructor(
                 _connectionState.value = ConnectionState.CONNECTING
                 
                 val request = Request.Builder()
-                    .url("ws://${tvDevice.ipAddress}:${tvDevice.port}")
+                    .url("wss://${tvDevice.ipAddress}:${tvDevice.port}")
                     .build()
 
                 val listener = object : WebSocketListener() {
@@ -44,50 +44,26 @@ class LGTVRepositoryImpl @Inject constructor(
                         Log.d("LGTVRepository", "WebSocket conectado exitosamente")
                         _connectionState.value = ConnectionState.CONNECTED
                         
-                        // Enviar mensaje de handshake para LG TV
+                        // Enviar mensaje de handshake para LG TV (formato correcto basado en prueba exitosa)
                         val handshakeMessage = """
                             {
+                                "id": "register_1",
                                 "type": "register",
-                                "id": "register_0",
                                 "payload": {
                                     "forcePairing": false,
                                     "pairingType": "PROMPT",
                                     "manifest": {
-                                        "manifestVersion": 1,
-                                        "appVersion": "1.1",
-                                        "signed": {
-                                            "created": "20140509",
-                                            "appId": "com.lge.test",
-                                            "vendorId": "com.lge",
-                                            "localizedAppNames": {
-                                                "": "LG Remote App",
-                                                "ko-KR": "리모컨 앱",
-                                                "zxx-XX": "ЛГ Rэмotэ AПП"
-                                            },
-                                            "localizedVendorNames": {
-                                                "": "LG Electronics"
-                                            },
-                                            "permissions": [
-                                                "TEST_SECURE",
-                                                "CONTROL_INPUT_TV",
-                                                "CONTROL_POWER",
-                                                "READ_APP_STATUS",
-                                                "READ_CURRENT_CHANNEL",
-                                                "READ_INSTALLED_APPS",
-                                                "READ_NETWORK_STATE",
-                                                "READ_RUNNING_APPS",
-                                                "READ_TV_CHANNEL_LIST",
-                                                "WRITE_NOTIFICATION_TOAST",
-                                                "CONTROL_POWER",
-                                                "READ_CURRENT_CHANNEL",
-                                                "READ_RUNNING_APPS"
-                                            ],
-                                            "serial": "2f930e2d2cfe083771f68e4fe7bb07"
+                                        "appId": "cl.jlopezr.control",
+                                        "vendor": "Jose",
+                                        "version": "1.0",
+                                        "localizedAppNames": {
+                                            "": "Control App"
                                         },
                                         "permissions": [
-                                            "TEST_SECURE",
-                                            "CONTROL_INPUT_TV",
-                                            "CONTROL_POWER",
+                                            "LAUNCH",
+                                            "CONTROL_INPUT_TEXT",
+                                            "CONTROL_INPUT_MEDIA_RECORDING",
+                                            "CONTROL_INPUT_MEDIA_PLAYBACK",
                                             "READ_APP_STATUS",
                                             "READ_CURRENT_CHANNEL",
                                             "READ_INSTALLED_APPS",
@@ -98,7 +74,8 @@ class LGTVRepositoryImpl @Inject constructor(
                                             "CONTROL_POWER",
                                             "READ_CURRENT_CHANNEL",
                                             "READ_RUNNING_APPS"
-                                        ]
+                                        ],
+                                        "serial": "123456"
                                     }
                                 }
                             }
@@ -122,7 +99,7 @@ class LGTVRepositoryImpl @Inject constructor(
                             when (type) {
                                 "response" -> {
                                     val id = json.optString("id")
-                                    if (id == "register_0") {
+                                    if (id == "register_1") {
                                         val error = json.optJSONObject("error")
                                         if (error != null) {
                                             val errorCode = error.optString("code")
@@ -135,9 +112,33 @@ class LGTVRepositoryImpl @Inject constructor(
                                                 _connectionState.value = ConnectionState.ERROR
                                             }
                                         } else {
-                                            // Registro exitoso
-                                            Log.d("LGTVRepository", "Registro exitoso, TV conectado")
-                                            _connectionState.value = ConnectionState.CONNECTED
+                                            // Verificar si la TV solicita aprobación del usuario
+                                            val payload = json.optJSONObject("payload")
+                                            val pairingType = payload?.optString("pairingType")
+                                            val returnValue = payload?.optBoolean("returnValue", false)
+                                            
+                                            if (pairingType == "PROMPT" && returnValue == true) {
+                                                // TV solicita confirmación del usuario - enviar automáticamente "Sí"
+                                                Log.d("LGTVRepository", "TV solicita confirmación - enviando respuesta automática 'Sí'")
+                                                
+                                                val confirmationMessage = """
+                                                    {
+                                                        "type": "response",
+                                                        "id": "register_1",
+                                                        "payload": {
+                                                            "returnValue": true
+                                                        }
+                                                    }
+                                                """.trimIndent()
+                                                
+                                                webSocket.send(confirmationMessage)
+                                                Log.d("LGTVRepository", "Respuesta de confirmación enviada automáticamente")
+                                                _connectionState.value = ConnectionState.CONNECTED
+                                            } else {
+                                                // Registro exitoso
+                                                Log.d("LGTVRepository", "Registro exitoso, TV conectado")
+                                                _connectionState.value = ConnectionState.CONNECTED
+                                            }
                                         }
                                     }
                                 }
@@ -193,9 +194,8 @@ class LGTVRepositoryImpl @Inject constructor(
             val pairingMessage = """
                 {
                     "type": "register",
-                    "id": "register_0",
+                    "id": "register_1",
                     "payload": {
-                        "forcePairing": false,
                         "pairingType": "PROMPT",
                         "client-key": "$code",
                         "manifest": {
@@ -219,14 +219,21 @@ class LGTVRepositoryImpl @Inject constructor(
                                     "CONTROL_POWER",
                                     "READ_APP_STATUS",
                                     "READ_CURRENT_CHANNEL",
-                                    "READ_INSTALLED_APPS",
+                                    "READ_INPUT_DEVICE_LIST",
                                     "READ_NETWORK_STATE",
                                     "READ_RUNNING_APPS",
                                     "READ_TV_CHANNEL_LIST",
                                     "WRITE_NOTIFICATION_TOAST",
-                                    "CONTROL_POWER",
-                                    "READ_CURRENT_CHANNEL",
-                                    "READ_RUNNING_APPS"
+                                    "CONTROL_INPUT_JOYSTICK",
+                                    "CONTROL_INPUT_MEDIA_RECORDING",
+                                    "CONTROL_INPUT_MEDIA_PLAYBACK",
+                                    "CONTROL_INPUT_TV",
+                                    "READ_INPUT_DEVICE_LIST",
+                                    "READ_NETWORK_STATE",
+                                    "READ_TV_CHANNEL_LIST",
+                                    "CONTROL_TV_SCREEN",
+                                    "CONTROL_TV_STANBY",
+                                    "CONTROL_VOLUME"
                                 ],
                                 "serial": "2f930e2d2cfe083771f68e4fe7bb07"
                             },
@@ -236,14 +243,21 @@ class LGTVRepositoryImpl @Inject constructor(
                                 "CONTROL_POWER",
                                 "READ_APP_STATUS",
                                 "READ_CURRENT_CHANNEL",
-                                "READ_INSTALLED_APPS",
+                                "READ_INPUT_DEVICE_LIST",
                                 "READ_NETWORK_STATE",
                                 "READ_RUNNING_APPS",
                                 "READ_TV_CHANNEL_LIST",
                                 "WRITE_NOTIFICATION_TOAST",
-                                "CONTROL_POWER",
-                                "READ_CURRENT_CHANNEL",
-                                "READ_RUNNING_APPS"
+                                "CONTROL_INPUT_JOYSTICK",
+                                "CONTROL_INPUT_MEDIA_RECORDING",
+                                "CONTROL_INPUT_MEDIA_PLAYBACK",
+                                "CONTROL_INPUT_TV",
+                                "READ_INPUT_DEVICE_LIST",
+                                "READ_NETWORK_STATE",
+                                "READ_TV_CHANNEL_LIST",
+                                "CONTROL_TV_SCREEN",
+                                "CONTROL_TV_STANBY",
+                                "CONTROL_VOLUME"
                             ]
                         }
                     }
@@ -258,6 +272,8 @@ class LGTVRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+
 
     override suspend fun disconnect() {
         webSocket?.close(1000, "Desconexión manual")

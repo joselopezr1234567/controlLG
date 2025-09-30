@@ -190,6 +190,8 @@ class HomeViewModel @Inject constructor(
         _pairingCode.value = ""
     }
 
+
+
     init {
         discoverTVs()
         

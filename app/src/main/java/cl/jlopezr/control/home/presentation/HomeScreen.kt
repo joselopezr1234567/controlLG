@@ -150,6 +150,7 @@ fun HomeScreen(
                         Text("Esperando código...")
                     }
                 }
+
                 ConnectionState.CONNECTED -> {
                     OutlinedButton(
                         onClick = viewModel::disconnectFromTV,
