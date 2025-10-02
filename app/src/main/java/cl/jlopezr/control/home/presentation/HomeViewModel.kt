@@ -190,7 +190,36 @@ class HomeViewModel @Inject constructor(
         _pairingCode.value = ""
     }
 
+    // Funciones para enviar comandos específicos
+    fun sendCommand(command: String) {
+        viewModelScope.launch {
+            lgtvRepository.sendCommand(command)
+                .onSuccess {
+                    Log.d("HomeViewModel", "Comando enviado exitosamente: $command")
+                }
+                .onFailure { exception ->
+                    val errorMsg = "Error enviando comando: ${exception.message}"
+                    Log.e("HomeViewModel", errorMsg, exception)
+                    _errorMessage.value = errorMsg
+                }
+        }
+    }
 
+    fun openNetflix() {
+        sendCommand("LAUNCH_APP:netflix")
+    }
+
+    fun openYouTube() {
+        sendCommand("LAUNCH_APP:youtube")
+    }
+
+    fun powerOff() {
+        sendCommand("POWER")
+    }
+
+    fun sendDirectionalCommand(direction: String) {
+        sendCommand(direction)
+    }
 
     init {
         discoverTVs()

@@ -2,6 +2,8 @@ package cl.jlopezr.control.voice.presentation
 
 import android.app.Application
 import android.content.Intent
+import android.os.Bundle
+import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
@@ -39,6 +41,8 @@ class VoiceControlViewModel @Inject constructor(
     private val _lastResult = MutableStateFlow("")
     private val _errorMessage = MutableStateFlow<String?>(null)
     private val _isSpeechRecognitionAvailable = MutableStateFlow(true)
+    
+    private var speechRecognizer: SpeechRecognizer? = null
 
     val uiState: StateFlow<VoiceControlUiState> = combine(
         lgtvRepository.getConnectionState(),
@@ -69,8 +73,62 @@ class VoiceControlViewModel @Inject constructor(
         initialValue = VoiceControlUiState()
     )
 
+    private val recognitionListener = object : RecognitionListener {
+        override fun onReadyForSpeech(params: Bundle?) {
+            Log.d("VoiceControlViewModel", "Listo para escuchar")
+        }
+
+        override fun onBeginningOfSpeech() {
+            Log.d("VoiceControlViewModel", "Comenzando a hablar")
+        }
+
+        override fun onRmsChanged(rmsdB: Float) {
+            // Cambios en el volumen del audio
+        }
+
+        override fun onBufferReceived(buffer: ByteArray?) {
+            // Buffer de audio recibido
+        }
+
+        override fun onEndOfSpeech() {
+            Log.d("VoiceControlViewModel", "Fin del habla")
+        }
+
+        override fun onError(error: Int) {
+            val errorMessage = when (error) {
+                SpeechRecognizer.ERROR_AUDIO -> "Error de audio"
+                SpeechRecognizer.ERROR_CLIENT -> "Error del cliente"
+                SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Permisos insuficientes"
+                SpeechRecognizer.ERROR_NETWORK -> "Error de red"
+                SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Timeout de red"
+                SpeechRecognizer.ERROR_NO_MATCH -> "No se encontró coincidencia"
+                SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Reconocedor ocupado"
+                SpeechRecognizer.ERROR_SERVER -> "Error del servidor"
+                SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Timeout de habla"
+                else -> "Error desconocido: $error"
+            }
+            onSpeechError(errorMessage)
+        }
+
+        override fun onResults(results: Bundle?) {
+            val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            if (!matches.isNullOrEmpty()) {
+                onSpeechResult(matches)
+            }
+        }
+
+        override fun onPartialResults(partialResults: Bundle?) {
+            // Resultados parciales
+        }
+
+        override fun onEvent(eventType: Int, params: Bundle?) {
+            // Eventos adicionales
+        }
+    }
+
     init {
         checkSpeechRecognitionAvailability()
+        initializeSpeechRecognizer()
     }
 
     private fun checkSpeechRecognitionAvailability() {
@@ -81,19 +139,40 @@ class VoiceControlViewModel @Inject constructor(
         }
     }
 
+    private fun initializeSpeechRecognizer() {
+        if (_isSpeechRecognitionAvailable.value) {
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(getApplication())
+            speechRecognizer?.setRecognitionListener(recognitionListener)
+        }
+    }
+
     fun startListening() {
         if (!_isSpeechRecognitionAvailable.value) {
             _errorMessage.value = "Reconocimiento de voz no disponible"
             return
         }
 
+        if (speechRecognizer == null) {
+            initializeSpeechRecognizer()
+        }
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+        }
+
         _isListening.value = true
         _errorMessage.value = null
         Log.d("VoiceControlViewModel", "Iniciando reconocimiento de voz")
+        
+        speechRecognizer?.startListening(intent)
     }
 
     fun stopListening() {
         _isListening.value = false
+        speechRecognizer?.stopListening()
         Log.d("VoiceControlViewModel", "Deteniendo reconocimiento de voz")
     }
 
@@ -158,6 +237,10 @@ class VoiceControlViewModel @Inject constructor(
             voiceCommand.contains("encender") -> "POWER"
             voiceCommand.contains("apagar") -> "POWER"
             
+            // Comandos de aplicaciones
+            voiceCommand.contains("netflix") -> "com.netflix.ninja"
+            voiceCommand.contains("youtube") -> "youtube.leanback.v4"
+            
             // Comandos de números
             voiceCommand.contains("uno") || voiceCommand.contains("1") -> "1"
             voiceCommand.contains("dos") || voiceCommand.contains("2") -> "2"
@@ -190,6 +273,22 @@ class VoiceControlViewModel @Inject constructor(
         }
     }
 
+    fun openNetflix() {
+        sendCommandToTV("com.netflix.ninja")
+    }
+
+    fun openYouTube() {
+        sendCommandToTV("youtube.leanback.v4")
+    }
+
+    fun powerOff() {
+        sendCommandToTV("POWER")
+    }
+
+    fun sendDirectionalCommand(command: String) {
+        sendCommandToTV(command)
+    }
+
     fun clearError() {
         _errorMessage.value = null
     }
@@ -201,5 +300,11 @@ class VoiceControlViewModel @Inject constructor(
             putExtra(RecognizerIntent.EXTRA_PROMPT, "Di un comando para la TV...")
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        speechRecognizer?.destroy()
+        speechRecognizer = null
     }
 }

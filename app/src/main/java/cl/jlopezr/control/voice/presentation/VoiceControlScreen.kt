@@ -45,20 +45,8 @@ fun VoiceControlScreen(
     ) { isGranted ->
         if (isGranted) {
             viewModel.startListening()
-        }
-    }
-    
-    // Launcher para el reconocimiento de voz
-    val speechLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            val results = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            if (!results.isNullOrEmpty()) {
-                viewModel.onSpeechResult(results)
-            }
         } else {
-            viewModel.onSpeechError("No se pudo reconocer el comando")
+            viewModel.onSpeechError("Permisos de micrófono requeridos")
         }
     }
 
@@ -97,10 +85,6 @@ fun VoiceControlScreen(
                     } else {
                         // Solicitar permisos y iniciar reconocimiento
                         permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        
-                        // Iniciar reconocimiento de voz
-                        val intent = viewModel.createSpeechRecognizerIntent()
-                        speechLauncher.launch(intent)
                     }
                 }
             )
@@ -112,24 +96,6 @@ fun VoiceControlScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium
-                )
-            }
-            
-            // Último comando
-            if (uiState.lastCommand.isNotEmpty()) {
-                CommandCard(
-                    title = "Último comando:",
-                    content = uiState.lastCommand,
-                    backgroundColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            }
-            
-            // Resultado
-            if (uiState.lastResult.isNotEmpty()) {
-                CommandCard(
-                    title = "Resultado:",
-                    content = uiState.lastResult,
-                    backgroundColor = MaterialTheme.colorScheme.secondaryContainer
                 )
             }
             
@@ -155,9 +121,7 @@ fun VoiceControlScreen(
             // Botones de prueba para emulador
             if (uiState.connectionState == ConnectionState.CONNECTED) {
                 TestCommandsSection(
-                    onCommandTest = { command ->
-                        viewModel.onSpeechResult(listOf(command))
-                    }
+                    viewModel = viewModel
                 )
             }
             
@@ -276,7 +240,7 @@ private fun CommandCard(
 
 @Composable
 private fun TestCommandsSection(
-    onCommandTest: (String) -> Unit
+    viewModel: VoiceControlViewModel
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -294,27 +258,116 @@ private fun TestCommandsSection(
                 modifier = Modifier.padding(bottom = 12.dp)
             )
             
+            // Botones de aplicaciones
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { viewModel.openNetflix() },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE50914))
+                ) {
+                    Text("Netflix", color = Color.White, fontSize = 12.sp)
+                }
+                Button(
+                    onClick = { viewModel.openYouTube() },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF0000))
+                ) {
+                    Text("YouTube", color = Color.White, fontSize = 12.sp)
+                }
+                Button(
+                    onClick = { viewModel.powerOff() },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF757575))
+                ) {
+                    Text("Apagar", color = Color.White, fontSize = 12.sp)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Botones direccionales organizados alrededor de OK
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Botón Arriba
+                Button(
+                    onClick = { viewModel.sendDirectionalCommand("UP") },
+                    modifier = Modifier.size(60.dp, 40.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                ) {
+                    Text("↑", fontSize = 16.sp)
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Fila con Izquierda, OK, Derecha
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = { viewModel.sendDirectionalCommand("LEFT") },
+                        modifier = Modifier.size(60.dp, 40.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                    ) {
+                        Text("←", fontSize = 16.sp)
+                    }
+                    
+                    Button(
+                        onClick = { viewModel.sendDirectionalCommand("ENTER") },
+                        modifier = Modifier.size(80.dp, 50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("OK", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                    
+                    Button(
+                        onClick = { viewModel.sendDirectionalCommand("RIGHT") },
+                        modifier = Modifier.size(60.dp, 40.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                    ) {
+                        Text("→", fontSize = 16.sp)
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Botón Abajo
+                Button(
+                    onClick = { viewModel.sendDirectionalCommand("DOWN") },
+                    modifier = Modifier.size(60.dp, 40.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                ) {
+                    Text("↓", fontSize = 16.sp)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
             // Comandos de volumen
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
-                    onClick = { onCommandTest("subir volumen") },
+                    onClick = { viewModel.sendDirectionalCommand("VOLUMEUP") },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text("Vol +", fontSize = 12.sp)
                 }
                 Button(
-                    onClick = { onCommandTest("bajar volumen") },
+                    onClick = { viewModel.sendDirectionalCommand("VOLUMEDOWN") },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text("Vol -", fontSize = 12.sp)
                 }
                 Button(
-                    onClick = { onCommandTest("silenciar") },
+                    onClick = { viewModel.sendDirectionalCommand("MUTE") },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                 ) {
@@ -324,88 +377,31 @@ private fun TestCommandsSection(
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            // Comandos de navegación
+            // Comandos de reproducción y otros
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
-                    onClick = { onCommandTest("arriba") },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                ) {
-                    Text("↑", fontSize = 16.sp)
-                }
-                Button(
-                    onClick = { onCommandTest("ok") },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                ) {
-                    Text("OK", fontSize = 12.sp)
-                }
-                Button(
-                    onClick = { onCommandTest("atrás") },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                ) {
-                    Text("Back", fontSize = 12.sp)
-                }
-            }
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = { onCommandTest("izquierda") },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                ) {
-                    Text("←", fontSize = 16.sp)
-                }
-                Button(
-                    onClick = { onCommandTest("abajo") },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                ) {
-                    Text("↓", fontSize = 16.sp)
-                }
-                Button(
-                    onClick = { onCommandTest("derecha") },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                ) {
-                    Text("→", fontSize = 16.sp)
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Comandos de reproducción
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = { onCommandTest("play") },
+                    onClick = { viewModel.sendDirectionalCommand("PLAY") },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                 ) {
                     Text("Play", fontSize = 12.sp)
                 }
                 Button(
-                    onClick = { onCommandTest("pausa") },
+                    onClick = { viewModel.sendDirectionalCommand("PAUSE") },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                 ) {
                     Text("Pause", fontSize = 12.sp)
                 }
                 Button(
-                    onClick = { onCommandTest("canal arriba") },
+                    onClick = { viewModel.sendDirectionalCommand("BACK") },
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
                 ) {
-                    Text("CH+", fontSize = 12.sp)
+                    Text("Back", fontSize = 12.sp)
                 }
             }
         }
